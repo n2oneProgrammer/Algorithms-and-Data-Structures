@@ -47,7 +47,7 @@ class LinkedList:
     def length(self) -> int:
         counter = 0
         pointer = self.__head
-        while pointer.next:
+        while pointer:
             pointer = pointer.next
             counter += 1
         return counter
@@ -96,3 +96,4 @@ if __name__ == '__main__':
     uczelnie.append(ll[0])
     uczelnie.remove_end()
     print(uczelnie.is_empty())
+    print(uczelnie.length())
