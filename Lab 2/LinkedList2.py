@@ -58,7 +58,7 @@ class LinkedList:
     def length(self) -> int:
         counter = 0
         pointer = self.__head
-        while pointer.next:
+        while pointer:
             pointer = pointer.next
             counter += 1
         return counter
