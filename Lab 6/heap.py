@@ -15,6 +15,8 @@ class Element(object):
     def __str__(self):
         return str(self.__priority) + ": " + str(self.__data)
 
+    def __repr__(self):
+        return str(self.__priority) + ": " + str(self.__data)
 
 class Heap:
     def __init__(self):
