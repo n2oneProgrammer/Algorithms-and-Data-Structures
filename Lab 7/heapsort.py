@@ -144,16 +144,20 @@ def selection_sort_swap(tab):
     return tab
 
 
-def insertion_sort_move(tab):
-    for i in range(len(tab) - 1):
+def selection_sort_shift(tab):
+    for i in range(len(tab)):
         min_idx = i
         min_v = tab[i]
         for j in range(i + 1, len(tab)):
             if min_v > tab[j]:
                 min_idx = j
                 min_v = tab[j]
-        tab.pop(min_idx)
-        tab.insert(0, min_v)
+
+        while min_idx > i:
+            tab[min_idx] = tab[min_idx - 1]
+            min_idx -= 1
+
+        tab[i] = min_v
     return tab
 
 
@@ -168,16 +172,27 @@ def test1():
     print("NIESTABLINE")
     print(selection_sort_swap(list(map(lambda e: Element(e[1], e[0]), l))))
     print("NIESTABLINE")
-    print(insertion_sort_move(list(map(lambda e: Element(e[1], e[0]), l))))
+    print(selection_sort_shift(list(map(lambda e: Element(e[1], e[0]), l))))
     print("STABLINE")
 
 
 def test2():
     l = [random.randint(0, 99) for i in range(10000)]
+    print(min(l),max(l))
     lo = list(map(lambda e: Element('a', e), l))
     t_start = time.perf_counter()
     heap = HeapSort(lo)
     heap.sorted()
+    t_stop = time.perf_counter()
+    print("Czas obliczeń:", "{:.7f}".format(t_stop - t_start))
+    lo2 = list(map(lambda e: Element('a', e), l))
+    t_start = time.perf_counter()
+    selection_sort_swap(lo2)
+    t_stop = time.perf_counter()
+    print("Czas obliczeń:", "{:.7f}".format(t_stop - t_start))
+    lo3 = list(map(lambda e: Element('a', e), l))
+    t_start = time.perf_counter()
+    selection_sort_shift(lo3)
     t_stop = time.perf_counter()
     print("Czas obliczeń:", "{:.7f}".format(t_stop - t_start))
 
