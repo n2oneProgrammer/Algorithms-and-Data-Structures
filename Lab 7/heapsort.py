@@ -148,7 +148,6 @@ def selection_sort_shift(tab):
     for i in range(len(tab)):
         min_idx = i
         min_v = tab[i]
-        for j in range(i + 1, len(tab)):
             if min_v > tab[j]:
                 min_idx = j
                 min_v = tab[j]
