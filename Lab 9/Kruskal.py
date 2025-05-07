@@ -1,6 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Set
-
 from graf_mst import graf
 
 
@@ -113,38 +111,50 @@ def printGraph(g):
     print("-------------------")
 
 
-def prim_MST(graf: Graph):
-    intree: Set[int] = set()
-    distance: Dict[int, float] = {}
-    parent: Dict[int, int] = {}
-    sum_all = 0
-    result_MST = ListGraph()
-    v = list(graf.vertices())[0]
-    for vertex in graf.vertices():
-        distance[vertex] = float('inf')
-    distance[v] = 0
-    result_MST.insert_vertex(graf.get_vertex(v))
-    while v not in intree:
-        intree.add(v)
-        neighbours = graf.neighbours(v)
-        for v2, d in neighbours:
-            if d < distance[v2] and v2 not in intree:
-                distance[v2] = d
-                parent[v2] = v
+class UnionFind:
+    def __init__(self, vertices):
+        self.parent = {}
+        self.size = {v: 1 for v in vertices}
 
-        min_vert: int | None = None
-        for vertex in graf.vertices():
-            if vertex in intree:
-                continue
-            if min_vert is None or distance[vertex] < distance[min_vert]:
-                min_vert = vertex
-        if min_vert is None:
-            break
-        result_MST.insert_vertex(graf.get_vertex(min_vert))
-        result_MST.insert_edge(graf.get_vertex(parent[min_vert]), graf.get_vertex(min_vert), distance[min_vert])
-        sum_all += distance[min_vert]
-        v = min_vert
-    return result_MST
+    def find(self, vertex: Vertex):
+        if vertex not in self.parent:
+            return vertex
+        self.parent[vertex] = self.find(self.parent[vertex])
+
+        return self.parent[vertex]
+
+    def union(self, vertex1, vertex2):
+        root1 = self.find(vertex1)
+        root2 = self.find(vertex2)
+        if root1 == root2:
+            return
+        if self.size[hash(root1)] < self.size[hash(root2)]:
+            root1, root2 = root2, root1
+        self.parent[root2] = root1
+        self.size[hash(root1)] += self.size[hash(root2)]
+
+
+def kruskal_MST(graph: Graph) -> Graph:
+    edges = []
+    for v in graph.vertices():
+        for u, weight in graph.neighbours(v):
+            if v < u:
+                edges.append((weight, graph.get_vertex(v), graph.get_vertex(u)))
+
+    edges.sort(key=lambda x: x[0])
+
+    uf = UnionFind(graph.vertices())
+    mst = ListGraph()
+
+    for vertex_id in graph.vertices():
+        mst.insert_vertex(graph.get_vertex(vertex_id))
+
+    for weight, v, u in edges:
+        if uf.find(v) != uf.find(u):
+            uf.union(v, u)
+            mst.insert_edge(v, u, weight)
+
+    return mst
 
 
 if __name__ == '__main__':
@@ -161,5 +171,5 @@ if __name__ == '__main__':
 
         g.insert_edge(Vertex(edge[0]), Vertex(edge[1]), edge[2])
 
-    out = prim_MST(g)
+    out = kruskal_MST(g)
     printGraph(out)
