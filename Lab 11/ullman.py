@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import copy
-import polska
 
 
 class Vertex:
@@ -138,11 +137,10 @@ class MatrixGraph(Graph):
 #               wypełnij aktualny_wiersz macierzy_M zerami i wstaw 1 do c-tego elementu wiersza
 #               wywołaj rekurencyjnie ullman dla następnego wiersza
 #               oznacz kolumnę c jako nieużywaną
-def ullman(used, current, M: np.ndarray, P, G, liczba_wywolan=0, liczba_izomorfizmow=0):
+def ullman(used, current, M, P, G, liczba_wywolan=0, liczba_izomorfizmow=0):
     liczba_wywolan += 1
     if current == M.shape[0]:
         if np.array_equal(P, M @ ((M @ G).transpose())):
-            print(M)
             liczba_izomorfizmow += 1
         return liczba_wywolan, liczba_izomorfizmow
     for c in range(M.shape[1]):
@@ -155,6 +153,79 @@ def ullman(used, current, M: np.ndarray, P, G, liczba_wywolan=0, liczba_izomorfi
                                                          liczba_izomorfizmow)
             used.remove(c)
     return liczba_wywolan, liczba_izomorfizmow
+
+
+def ullman2(used, current, M, P, G, liczba_wywolan=0, liczba_izomorfizmow=0):
+    liczba_wywolan += 1
+    if current == M.shape[0]:
+        if np.array_equal(P, M @ ((M @ G).transpose())):
+            liczba_izomorfizmow += 1
+        return liczba_wywolan, liczba_izomorfizmow
+
+    for c in range(M.shape[1]):
+        if c not in used and M[current, c] == 1:
+            used.add(c)
+            Mc = copy.deepcopy(M)
+            Mc[current, :] = 0
+            Mc[current, c] = 1
+            liczba_wywolan, liczba_izomorfizmow = ullman2(
+                used, current + 1, Mc, P, G, liczba_wywolan, liczba_izomorfizmow)
+            used.remove(c)
+
+    return liczba_wywolan, liczba_izomorfizmow
+
+
+def ullman3(used, current, M, P, G, liczba_wywolan=0, liczba_izomorfizmow=0):
+    liczba_wywolan += 1
+
+    if current == M.shape[0]:
+        if np.array_equal(P, M @ ((M @ G).transpose())):
+            liczba_izomorfizmow += 1
+        return liczba_wywolan, liczba_izomorfizmow
+
+    for col in range(M.shape[1]):
+        if col not in used and M[current][col] != 0:
+            used.add(col)
+            M_copy = copy.deepcopy(M)
+            M_copy[current, :] = 0
+            M_copy[current, col] = 1
+
+            M_prune = prune(copy.deepcopy(M_copy), P, G)
+
+            liczba_wywolan, liczba_izomorfizmow = ullman3(used, current + 1, M_prune, P, G, liczba_wywolan,
+                                                          liczba_izomorfizmow)
+            used.remove(col)
+    return liczba_wywolan, liczba_izomorfizmow
+
+
+def createM0(P, G):
+    M0 = np.zeros((P.shape[0], G.shape[0]), dtype=int)
+    sumP = np.sum(P, axis=1)
+    sumG = np.sum(G, axis=1)
+
+    for i in range(P.shape[0]):
+        for j in range(G.shape[0]):
+            if sumP[i] <= sumG[j]:
+                M0[i][j] = 1
+    return M0
+
+
+def prune(M, P, G):
+    changed = True
+    while changed:
+        changed = False
+        rows, cols = M.shape
+        for i in range(rows):
+            for j in range(cols):
+                if M[i][j] == 1:
+                    p_neighs = [idx for idx, val in enumerate(P[i]) if val == 1]
+                    g_neighs = [idx for idx, val in enumerate(G[j]) if val == 1]
+                    for x in p_neighs:
+                        if not any(M[x][y] == 1 for y in g_neighs):
+                            M[i][j] = 0
+                            changed = True
+                            break
+    return M
 
 
 if __name__ == '__main__':
@@ -175,5 +246,11 @@ if __name__ == '__main__':
     for s, t, v in graph_P:
         g2.insert_edge(Vertex(s), Vertex(t))
 
-    print(ullman(set(), 0, np.zeros((3, 6)), g2.get_matrix(), g1.get_matrix()))
-
+    wynik1 = ullman(set(), 0, np.zeros((3, 6)), g2.get_matrix(), g1.get_matrix())
+    M0 = createM0(g2.get_matrix(), g1.get_matrix())
+    wynik2 = ullman2(set(), 0, M0, g2.get_matrix(), g1.get_matrix())
+    M0 = createM0(g2.get_matrix(), g1.get_matrix())
+    wynik3 = ullman3(set(), 0, M0, g2.get_matrix(), g1.get_matrix())
+    print(wynik1[0], wynik1[1])
+    print(wynik2[0], wynik2[1])
+    print(wynik3[0], wynik3[1])
