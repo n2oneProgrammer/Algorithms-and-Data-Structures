@@ -112,27 +112,24 @@ def kmp_table(W):
     T = [-1] * (len(W) + 1)
     pos = 1
     cnd = 0
-    count = 0
     while pos < len(W):
-        count += 1
         if W[pos] == W[cnd]:
             T[pos] = T[cnd]
         else:
             T[pos] = cnd
-            count += 1
             while cnd >= 0 and W[pos] != W[cnd]:
-                count += 1
                 cnd = T[cnd]
         pos += 1
         cnd += 1
     T[pos] = cnd
-    return T, count
+    return T
 
 
 def kmp_search(S, W):
     m = 0
     i = 0
-    T, count = kmp_table(W)
+    count = 0
+    T = kmp_table(W)
     out = []
 
     while m < len(S):
@@ -151,23 +148,23 @@ def kmp_search(S, W):
 
     return out, count, T
 
-
+W = "i shan’t often be visiting the shire openly again.".lower()
 t_start = time.perf_counter()
-out, count = naiwna(S, "time.")
+out, count = naiwna(S, W)
 t_stop = time.perf_counter()
 print(f"{len(out)};{count};{t_stop - t_start:.7f}")
 
 t_start = time.perf_counter()
-out, count, collision = rabinKarp(S, "time.")
+out, count, collision = rabinKarp(S, W)
 t_stop = time.perf_counter()
 print(f"{len(out)};{count};{collision};{t_stop - t_start:.7f}")
 
 t_start = time.perf_counter()
-out, count, collision = rabinKarp_rolling(S, "time.")
+out, count, collision = rabinKarp_rolling(S, W)
 t_stop = time.perf_counter()
 print(f"{len(out)};{count};{collision};{t_stop - t_start:.7f}")
 
 t_start = time.perf_counter()
-out, count, T = kmp_search(S, "time.")
+out, count, T = kmp_search(S, W)
 t_stop = time.perf_counter()
 print(f"{len(out)};{count};{T};{t_stop - t_start:.7f}")

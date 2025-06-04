@@ -5,17 +5,25 @@ from matplotlib import pyplot as plt
 import numpy as np
 import os
 from abc import ABC, abstractmethod
+import matplotlib.pyplot as plt
 
 
 class Vertex:
-    def __init__(self, key):
-        self.key = key
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
     def __hash__(self):
-        return hash(self.key)
+        return hash(str(self.x) + "x" + str(self.y))
 
     def __repr__(self):
-        return str(self.key)
+        return str(self.x) + "x" + str(self.y)
+
+
+class Edge:
+    def __init__(self, I, theta):
+        self.I = I
+        self.theta = theta
 
 
 class Graph(ABC):
@@ -70,6 +78,7 @@ class ListGraph(Graph):
 
     def insert_vertex(self, vertex):
         if hash(vertex) in self.vertex:
+            return
             raise Exception('Vertex {} already exists'.format(str(vertex)))
         self.neighbor_list[hash(vertex)] = {}
         self.vertex[hash(vertex)] = vertex
@@ -111,201 +120,234 @@ class ListGraph(Graph):
     def get_edge(self, vertex1_id, vertex2_id):
         return self.neighbor_list[vertex1_id].get(vertex2_id, None)
 
+    def plot_graph(self, v_color, e_color):
+        for idx, v in enumerate(self.vertex):
+            x = self.get_vertex(v).x
+            y = self.get_vertex(v).y
+            plt.scatter(x, y, c=v_color)
+            for n_idx, _ in self.neighbours(v):
+                xn = self.get_vertex(n_idx).x
+                yn = self.get_vertex(n_idx).y
+                plt.plot([x, xn], [y, yn], color=e_color)
 
-def plot_graph(self, v_color, e_color):
-    for idx, v in enumerate(self.vertex):
-        y, x = v.key
-        plt.scatter(x, y, c=v_color)
-        for n_idx, _ in self.neighbours(idx):
-            yn, xn = self.getVertex(n_idx).key
-            plt.plot([x, xn], [y, yn], color=e_color)
 
+def unclutter_biometric_graph(graph: ListGraph):
+    to_remove = set()
+    to_add = []
 
-class BiometricGraph(ListGraph):
-    def __init__(self):
-        super().__init__()
+    for v_id in list(graph.vertices()):
+        neighbours = list(graph.neighbours(v_id))
+        if len(neighbours) != 2:
+            # Punkt charakterystyczny - start śledzenia
+            for n_id, _ in neighbours:
+                path = []
+                current = n_id
+                prev = v_id
 
-    def fill_from_image(self, binary_image):
-        rows, cols = binary_image.shape
-        for y in range(rows):
-            for x in range(cols):
-                if binary_image[y, x] == 255:  # biały piksel
-                    current_vertex = Vertex((y, x))
-                    self.insert_vertex(current_vertex)
-                    # sprawdzenie sąsiednich pikseli
-                    for dy in [-1, 0, 1]:
-                        for dx in [-1, 0, 1]:
-                            if dy == 0 and dx == 0:
-                                continue
-                            ny, nx = y + dy, x + dx
-                            if 0 <= ny < rows and 0 <= nx < cols and binary_image[ny, nx] == 255:
-                                neighbor_vertex = Vertex((ny, nx))
-                                if hash(neighbor_vertex) not in self.vertex:
-                                    self.insert_vertex(neighbor_vertex)
-                                self.insert_edge(current_vertex, neighbor_vertex, None)
-                                self.insert_edge(neighbor_vertex, current_vertex, None)
-
-    def unclutter(self):
-        to_remove = set()
-        to_add = []
-
-        for v_id in list(self.vertices()):
-            neighbours = list(self.neighbours(v_id))
-            if len(neighbours) != 2:
-                for n_id, _ in neighbours:
-                    path = [v_id]
-                    prev_id = v_id
-                    current_id = n_id
-                    while len(self.neighbours(current_id)) == 2:
-                        path.append(current_id)
-                        n_ids = [nid for nid, _ in self.neighbours(current_id) if nid != prev_id]
-                        if not n_ids:
-                            break
-                        prev_id, current_id = current_id, n_ids[0]
-                    path.append(current_id)
-                    for pid in path[1:-1]:
-                        to_remove.add(pid)
-                    to_add.append((v_id, current_id))
-
-        for v in to_remove:
-            self.delete_vertex(v)
-
-        for v1, v2 in to_add:
-            if v1 != v2:
-                self.insert_edge(self.get_vertex(v1), self.get_vertex(v2), None)
-                self.insert_edge(self.get_vertex(v2), self.get_vertex(v1), None)
-
-    def merge_near_vertices(self, threshold=3):
-        merged = []
-        visited = set()
-
-        ids = list(self.vertices())
-        for i in range(len(ids)):
-            if ids[i] in visited:
-                continue
-            group = [ids[i]]
-            y1, x1 = self.get_vertex(ids[i]).key
-            for j in range(i + 1, len(ids)):
-                y2, x2 = self.get_vertex(ids[j]).key
-                if ids[j] not in visited and math.hypot(x2 - x1, y2 - y1) < threshold:
-                    group.append(ids[j])
-                    visited.add(ids[j])
-            merged.append(group)
-
-        for group in merged:
-            if len(group) < 2:
-                continue
-            new_coords = np.mean([self.get_vertex(vid).key for vid in group], axis=0)
-            new_vertex = Vertex(tuple(map(int, new_coords)))
-            self.insert_vertex(new_vertex)
-
-            new_edges = set()
-            for vid in group:
-                for nid, _ in self.neighbours(vid):
-                    if nid not in group:
-                        new_edges.add(nid)
-            for nid in new_edges:
-                self.insert_edge(new_vertex, self.get_vertex(nid), None)
-                self.insert_edge(self.get_vertex(nid), new_vertex, None)
-
-            for vid in group:
-                self.delete_vertex(vid)
-
-    def plot(self, v_color='red', e_color='blue', Y=None):
-        for idx, v in self.vertex.items():
-            y, x = v.key
-            if Y is not None:
-                y = Y - y
-            plt.scatter(x, y, c=v_color, s=10)
-            for n_idx, _ in self.neighbours(idx):
-                yn, xn = self.get_vertex(n_idx).key
-                if Y is not None:
-                    yn = Y - yn
-                plt.plot([x, xn], [y, yn], color=e_color, linewidth=0.5)
-
-    def transform(self, tx, ty, theta):
-        cos_t = math.cos(theta)
-        sin_t = math.sin(theta)
-        new_vertex = {}
-        new_edges = {}
-
-        for v_id in self.vertices():
-            y, x = self.get_vertex(v_id).key
-            x += tx
-            y += ty
-            x_rot = x * cos_t + y * sin_t
-            y_rot = -x * sin_t + y * cos_t
-            new_vertex[v_id] = Vertex((int(y_rot), int(x_rot)))
-
-        for v_id in self.vertices():
-            new_edges[v_id] = {}
-            for n_id, val in self.neighbours(v_id):
-                new_edges[v_id][n_id] = val
-
-        self.vertex = new_vertex
-        self.neighbor_list = new_edges
-
-def biometric_graph_registration(graph1: BiometricGraph, graph2: BiometricGraph, Ni=50, eps=10):
-    """
-    Dopasowuje dwa grafy biometryczne przez przekształcenie (obrót i przesunięcie).
-    Zwraca dwa grafy po dopasowaniu do wspólnych współrzędnych.
-    """
-    best_score = 0
-    best_transform = None
-    best_graph2_aligned = None
-
-    edges1 = graph1.edges
-    edges2 = graph2.edges
-
-    for edge1 in edges1:
-        for edge2 in edges2:
-            # v1 and v2 are endpoints of edge1
-            v1a, v1b = graph1.vertices[edge1[0]], graph1.vertices[edge1[1]]
-            # u1 and u2 are endpoints of edge2
-            v2a, v2b = graph2.vertices[edge2[0]], graph2.vertices[edge2[1]]
-
-            # Calculate vectors
-            vec1 = v1b - v1a
-            vec2 = v2b - v2a
-
-            # Compute angle between edges
-            angle1 = np.arctan2(vec1[1], vec1[0])
-            angle2 = np.arctan2(vec2[1], vec2[0])
-            angle_diff = angle1 - angle2
-
-            # Rotate and translate graph2
-            R = np.array([[np.cos(angle_diff), -np.sin(angle_diff)],
-                          [np.sin(angle_diff),  np.cos(angle_diff)]])
-            t = v1a - R @ v2a
-
-            # Apply transformation to graph2
-            transformed_vertices = [R @ v + t for v in graph2.vertices]
-
-            # Count how many transformed vertices match vertices in graph1
-            matched = 0
-            for tv in transformed_vertices:
-                for gv in graph1.vertices:
-                    if np.linalg.norm(tv - gv) < eps:
-                        matched += 1
+                while True:
+                    if current in to_remove:
                         break
 
-            if matched > best_score:
-                best_score = matched
-                best_transform = (R, t)
-                best_graph2_aligned = BiometricGraph()
-                best_graph2_aligned.vertices = transformed_vertices
-                best_graph2_aligned.edges = graph2.edges
+                    current_neigh = list(graph.neighbours(current))
+                    if len(current_neigh) != 2:
+                        # Napotkaliśmy punkt końcowy śledzenia
+                        to_add.append((v_id, current))  # Dodaj nową krawędź
+                        to_add.append((current, v_id))
+                        break
 
-    # Tworzymy kopię graph1
-    graph1_copy = BiometricGraph()
-    graph1_copy.vertices = graph1.vertices
-    graph1_copy.edges = graph1.edges
+                    path.append(current)
+                    to_remove.add(current)
 
-    if best_graph2_aligned is None:
-        # Jeśli nie znaleziono dobrego dopasowania, zwróć oryginalne grafy
-        return graph1_copy, graph2
+                    # Wybieramy kolejny wierzchołek, pomijając tego, z którego przyszliśmy
+                    next_candidates = [nid for nid, _ in current_neigh if nid != prev]
+                    if not next_candidates:
+                        break  # pętla się kończy — nie znaleziono innej ścieżki
+                    prev, current = current, next_candidates[0]
 
-    return graph1_copy, best_graph2_aligned
+    # Usuwanie wierzchołków
+    for v_id in to_remove:
+        graph.delete_vertex(v_id)
+
+    # Dodanie nowych krawędzi
+    for v1_id, v2_id in to_add:
+        try:
+            v1 = graph.get_vertex(v1_id)
+            v2 = graph.get_vertex(v2_id)
+            graph.insert_edge(v1, v2, Edge(I=1, theta=0))  # Możesz zmodyfikować I i theta
+        except Exception:
+            pass  # Jeśli któryś z wierzchołków został już usunięty lub nie istnieje
+
+
+def merge_near_vertices(graph: ListGraph, thr=3):
+    visited = set()
+    groups = []
+
+    vertex_items = list(graph.vertex.items())
+
+    # Tworzymy listy grup wierzchołków do połączenia
+    for i in range(len(vertex_items)):
+        v1_id, v1 = vertex_items[i]
+        if v1_id in visited:
+            continue
+        group = [v1]
+        visited.add(v1_id)
+
+        for j in range(i + 1, len(vertex_items)):
+            v2_id, v2 = vertex_items[j]
+            if v2_id in visited:
+                continue
+
+            dist = math.hypot(v1.x - v2.x, v1.y - v2.y)
+            if dist < thr:
+                group.append(v2)
+                visited.add(v2_id)
+
+        if len(group) > 1:
+            groups.append(group)
+
+    # Teraz przetwarzamy każdą grupę
+    for group in groups:
+        all_neighbors = set()
+        group_ids = set([hash(v) for v in group])
+
+        # Oblicz średnią współrzędnych
+        avg_x = int(sum(v.x for v in group) / len(group))
+        avg_y = int(sum(v.y for v in group) / len(group))
+        new_vertex = Vertex(avg_x, avg_y)
+        graph.insert_vertex(new_vertex)
+
+        # Zbieramy połączenia z wierzchołków w grupie
+        for v in group:
+            v_id = hash(v)
+            for n_id, edge in graph.neighbours(v_id):
+                if n_id not in group_ids:
+                    all_neighbors.add((n_id, edge))
+
+        # Usuwamy stare wierzchołki
+        for v in group:
+            try:
+                graph.delete_vertex(hash(v))
+            except:
+                pass  # może być już usunięty przez wcześniejsze połączenie
+
+        # Dodajemy nowe krawędzie do sąsiadów
+        for n_id, edge in all_neighbors:
+            try:
+                neighbor = graph.get_vertex(n_id)
+                graph.insert_edge(new_vertex, neighbor, edge)
+                graph.insert_edge(neighbor, new_vertex, edge)
+            except:
+                pass  # jeżeli neighbor już nie istnieje
+
+
+def fill_biometric_graph_from_image(obraz, graph):
+    h, w = obraz.shape
+    for y in range(h):
+        for x in range(w):
+            if obraz[y, x] > 0:
+                graph.insert_vertex(Vertex(x, y))
+                for pos in [(-1, -1), (-1, 0), (0, -1), (1, -1)]:
+                    nx, ny = x + pos[0], y + pos[1]
+                    if obraz[ny, nx] > 0:
+                        graph.insert_vertex(Vertex(nx, ny))
+                        graph.insert_edge(Vertex(nx, ny), Vertex(x, y), 1)
+                        graph.insert_edge(Vertex(x, y), Vertex(nx, ny), 1)
+
+
+def angle_between_vectors(v1, v2):
+    dot = np.dot(v1, v2)
+    norm = np.linalg.norm(v1) * np.linalg.norm(v2)
+    return np.arccos(np.clip(dot / norm, -1.0, 1.0))
+
+
+def edge_vector(graph, v1_id, v2_id):
+    v1 = graph.get_vertex(v1_id)
+    v2 = graph.get_vertex(v2_id)
+    return np.array([v2.x - v1.x, v2.y - v1.y]), v1, v2
+
+
+def transform_graph(graph, ref_v1, ref_v2):
+    # Wektor krawędzi
+    vec = np.array([ref_v2.x - ref_v1.x, ref_v2.y - ref_v1.y])
+    vec_norm = vec / np.linalg.norm(vec)
+    angle = np.arccos(np.clip(np.dot(vec_norm, [1, 0]), -1.0, 1.0))
+
+    if vec_norm[1] < 0:
+        angle = -angle
+
+    cos_theta, sin_theta = np.cos(-angle), np.sin(-angle)
+    R = np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
+    t = np.array([ref_v1.x, ref_v1.y])
+
+    new_graph = ListGraph()
+    for v_id in graph.vertices():
+        v = graph.get_vertex(v_id)
+        p = np.array([v.x, v.y]) - t
+        p_rot = R @ p
+        new_graph.insert_vertex(Vertex(p_rot[0], p_rot[1]))
+
+    for v_id in graph.vertices():
+        v = graph.get_vertex(v_id)
+        for n_id, edge in graph.neighbours(v_id):
+            if v_id < n_id:
+                v1 = new_graph.get_vertex(hash(Vertex(*(R @ (np.array([v.x, v.y]) - t)))))
+                v2 = new_graph.get_vertex(
+                    hash(Vertex(*(R @ (np.array([graph.get_vertex(n_id).x, graph.get_vertex(n_id).y]) - t)))))
+                if v1 and v2:
+                    new_graph.insert_edge(v1, v2, edge)
+                new_graph.insert_edge(v2, v1, edge)
+
+    return new_graph
+
+
+def count_matching_vertices(graph1, graph2, eps):
+    matched = 0
+    used = set()
+    for v1_id in graph1.vertices():
+        v1 = graph1.get_vertex(v1_id)
+        for v2_id in graph2.vertices():
+            if v2_id in used:
+                continue
+            v2 = graph2.get_vertex(v2_id)
+            dist = math.hypot(v1.x - v2.x, v1.y - v2.y)
+            if dist < eps:
+                matched += 1
+                used.add(v2_id)
+                break
+    return matched
+
+
+def biometric_graph_registration(graph1, graph2, Ni=10, eps=3):
+    edge_pairs = []
+
+    for v1_id in graph1.vertices():
+        for n1_id, _ in graph1.neighbours(v1_id):
+            vec1, _, _ = edge_vector(graph1, v1_id, n1_id)
+            for v2_id in graph2.vertices():
+                for n2_id, _ in graph2.neighbours(v2_id):
+                    vec2, _, _ = edge_vector(graph2, v2_id, n2_id)
+                    angle = angle_between_vectors(vec1, vec2)
+                    edge_pairs.append((angle, (v1_id, n1_id), (v2_id, n2_id)))
+
+    edge_pairs.sort(key=lambda x: x[0])
+    best_dk = float('inf')
+    best_match = None
+
+    for i in range(min(Ni, len(edge_pairs))):
+        _, (g1v1, g1v2), (g2v1, g2v2) = edge_pairs[i]
+
+        tg1 = transform_graph(graph1, graph1.get_vertex(g1v1), graph1.get_vertex(g1v2))
+        tg2 = transform_graph(graph2, graph2.get_vertex(g2v1), graph2.get_vertex(g2v2))
+
+        C = count_matching_vertices(tg1, tg2, eps)
+        dk = 1 - (C / max(len(tg1.vertices()), len(tg2.vertices())))
+
+        if dk < best_dk:
+            best_dk = dk
+            best_match = (tg1, tg2)
+
+    return best_match
+
 
 def main():
     data_path = "./Images"
@@ -322,10 +364,10 @@ def main():
                 img_1ch = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 _, img_bin = cv2.threshold(img_1ch, 127, 255, cv2.THRESH_BINARY)
 
-                graph = BiometricGraph()
-                graph.fill_from_image(img_bin)
-                graph.unclutter()
-                graph.merge_near_vertices(5)
+                graph = ListGraph()
+                fill_biometric_graph_from_image(img_bin, graph)
+                unclutter_biometric_graph(graph)
+                merge_near_vertices(graph, thr=5)
 
                 input_data.append((img_name, graph))
                 print("Saved!")
