@@ -28,8 +28,12 @@ class ConvexHull:
         self.hull = []
 
     @staticmethod
-    def isLeft(p1: Point, p2: Point, p3: Point):
-        return (p3.y - p2.y) * (p2.x - p1.x) - (p2.y - p1.y) * (p3.x - p2.x)
+    def isRight(p: Point, q: Point, r: Point):
+        return (q.y - p.y) * (r.x - q.x) - (r.y - q.y) * (q.x - p.x)
+
+    @staticmethod
+    def distance(p: Point, q: Point):
+        return (p.x - q.x) ** 2 + (p.y - q.y) ** 2
 
     def jarvis(self):
         first_point = min(self.points, key=lambda p: (p.x, p.y))
@@ -38,17 +42,18 @@ class ConvexHull:
             self.hull.append(p)
             q = self.points[0] if self.points[0] != p else self.points[1]
 
-            i=0
-            while i < len(self.points):
-                r = self.points[i]
-                if r == p or r == q:
-                    i+=1
+            i = 0
+            while i < len(points):
+                r = points[i]
+                if r == p and r == q:
+                    i += 1
                     continue
-                if self.isLeft(p, q, r) >= 0:
+                o = ConvexHull.isRight(p, q, r)
+                if o < 0 or (o == 0 and ConvexHull.distance(p, r) > ConvexHull.distance(p, q)):
                     q = r
+                    i = 0
                     continue
                 i += 1
-
 
             p = q
             if p == first_point:
@@ -62,6 +67,11 @@ if __name__ == "__main__":
     print(hull.hull)
 
     points = [Point(p[0], p[1]) for p in [(0, 3), (0, 1), (0, 0), (3, 0), (3, 3)]]
+    hull = ConvexHull(points)
+    hull.jarvis()
+    print(hull.hull)
+
+    points = [Point(p[0], p[1]) for p in [(2, 2), (4, 3), (5, 4), (0, 3), (0, 2), (0, 0), (2, 1), (2, 0), (4, 0)]]
     hull = ConvexHull(points)
     hull.jarvis()
     print(hull.hull)
